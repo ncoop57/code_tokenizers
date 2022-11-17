@@ -17,19 +17,30 @@ _GRAMMARs = {
 }
 
 # %% ../nbs/01_cli.ipynb 5
-def download_grammars():
-    languages = []
-    for lang, (url, dir, tag) in _GRAMMARs.items():
-        repo_dir = Path(code_tokenizers.__path__[0])/dir
+@call_parse
+def download_grammars(
+    languages: Param("Languages to download", str, nargs="+") = "all",
+):
+    """Download Tree-sitter grammars"""
+    try:
+        grammars = _GRAMMARs if languages == "all" else {k: _GRAMMARs[k] for k in languages}
+    except KeyError as e:
+        raise ValueError(f"Invalid or unsupported language: {e}. Supported languages: {list(_GRAMMARs.keys())}")
+
+    langs = []
+    grammar_dir = Path(code_tokenizers.__file__).parent / "grammars"
+    grammar_dir.mkdir(exist_ok=True)
+    for lang, (url, dir, tag) in grammars.items():
+        repo_dir = grammar_dir / dir
         if not repo_dir.exists():
             repo = Repo.clone_from(url, repo_dir)
         g = Git(str(repo_dir))
         g.checkout(tag)
-        languages.append(str(repo_dir))
+        langs.append(str(repo_dir))
     
     Language.build_library(
         # Store the library in the directory
-        str(Path(code_tokenizers.__path__[0])/"tree-sitter-languages.so"),
+        str(grammar_dir / "tree-sitter-languages.so"),
         # Include one or more languages
-        languages
+        langs
     )
