@@ -71,8 +71,8 @@ class CodeTokenizer():
         self.parser = parser
         self.node_types = node_types
     
-    def __call__(self, code):
-        encoding = self.tokenizer(code, return_offsets_mapping=True)
+    def __call__(self, code, return_merged=False, **kwargs):
+        encoding = self.tokenizer(code, return_offsets_mapping=True, **kwargs)
         tree = self.parser.parse(bytes(code, "utf8"))
         nodes = []
         traverse(tree.root_node, nodes)
@@ -100,7 +100,17 @@ class CodeTokenizer():
                     encoding["ast_ids"].append(-1)
                     encoding["parent_ast_ids"].append(-1)
                     raise e
-            
+        
+        if return_merged:
+            # Merge the AST ids with their parent AST ids and use the names instead of the ids
+            encoding["merged_ast"] = []
+            for i, (parent_id, ast_id) in enumerate(zip(encoding["parent_ast_ids"], encoding["ast_ids"])):
+                if parent_id == -1 or ast_id == -1:
+                    encoding["merged_ast"].append("< N/A >")
+                else:
+                    encoding["merged_ast"].append(
+                        f"<{self.node_types[parent_id]} -> {self.node_types[ast_id]}>"
+                    )
         return encoding
 
     @staticmethod
@@ -112,7 +122,7 @@ class CodeTokenizer():
         tokenizer = AutoTokenizer.from_pretrained(name_or_path)
 
         # Grab the node types from the tree-sitter language
-        language = Language(f"{code_tokenizers.__path__[0]}/tree-sitter-languages.so", lang)
+        language = Language(f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-languages.so", lang)
         node_path = f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-{lang}/src/node-types.json"
         with open(node_path) as f:
             node_types = json.load(f)
