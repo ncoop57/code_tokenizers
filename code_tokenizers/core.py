@@ -112,6 +112,9 @@ class CodeTokenizer():
                         f"<{self.node_types[parent_id]} -> {self.node_types[ast_id]}>"
                     )
         return encoding
+    
+    def decode(self, *args, **kwargs):
+        return self.tokenizer.decode(*args, **kwargs)
 
     @staticmethod
     def from_pretrained(
