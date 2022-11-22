@@ -71,7 +71,7 @@ class CodeTokenizer():
         self.parser = parser
         self.node_types = node_types
     
-    def __call__(self, code, return_merged=False, **kwargs):
+    def __call__(self, code, return_merged=True, **kwargs):
         encoding = self.tokenizer(code, return_offsets_mapping=True, **kwargs)
         tree = self.parser.parse(bytes(code, "utf8"))
         nodes = []
