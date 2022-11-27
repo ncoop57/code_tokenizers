@@ -66,51 +66,92 @@ def get_token_type(
 # %% ../nbs/00_core.ipynb 7
 class CodeTokenizer():
     """A tokenizer for code, which aligns the tokens with the AST nodes."""
-    def __init__(self, tokenizer, parser, node_types):
+    def __init__(
+        self,
+        tokenizer,  # transformers tokenizer
+        parser,     # tree-sitter parser
+        node_types  # list of node types
+    ):
         self.tokenizer = tokenizer
         self.parser = parser
         self.node_types = node_types
     
-    def __call__(self, code, return_merged=True, **kwargs):
-        encoding = self.tokenizer(code, return_offsets_mapping=True, **kwargs)
+    def parse_tree(
+        self,
+        code,           # code to parse
+        offset_mapping  # offset mapping from the tokenizer to align the tokens with the AST nodes
+    ):                  # returns a list of AST ids and a list of parent AST ids
         tree = self.parser.parse(bytes(code, "utf8"))
         nodes = []
         traverse(tree.root_node, nodes)
 
-        encoding["ast_ids"] = []
-        encoding["parent_ast_ids"] = []
-        for i, (start, end) in enumerate(encoding.offset_mapping):
+        ast_ids = []
+        parent_ast_ids = []
+        for i, (start, end) in enumerate(offset_mapping):
             if start == None or end == None:
-                encoding["ast_ids"].append(-1)
-                encoding["parent_ast_ids"].append(-1)
+                ast_ids.append(-1)
+                parent_ast_ids.append(-1)
                 continue
             type_info = get_token_type((start, end), nodes, code.split("\n"))
             if type_info is None:
-                encoding["ast_ids"].append(-1)
-                encoding["parent_ast_ids"].append(-1)
+                ast_ids.append(-1)
+                parent_ast_ids.append(-1)
             else:
                 parent_node_type, node_type = type_info
                 try:
-                    encoding["ast_ids"].append(self.node_types.index(node_type))
-                    encoding["parent_ast_ids"].append(self.node_types.index(parent_node_type))
+                    ast_ids.append(self.node_types.index(node_type))
+                    parent_ast_ids.append(self.node_types.index(parent_node_type))
                 except Exception as e:
                     print(type_info)
                     print(code)
-                    print(self.tokenizer.decode(encoding["input_ids"][i]))
-                    encoding["ast_ids"].append(-1)
-                    encoding["parent_ast_ids"].append(-1)
+                    ast_ids.append(-1)
+                    parent_ast_ids.append(-1)
                     raise e
+
+        return ast_ids, parent_ast_ids
+    
+    def __call__(
+        self,
+        code,               # code or list of code to tokenize
+        return_merged=True, # whether to string representations of the merged ASTs and parent ASTs
+        **kwargs            # kwargs for the underlying transformers tokenizer
+    ):                      # returns a dictionary of token ids, attention masks, AST ids, parent AST ids, and optionally the string representations of the merged ASTs and parent ASTs
+        encoding = self.tokenizer(code, return_offsets_mapping=True, **kwargs)
+        if isinstance(code, list):
+            encoding["ast_ids"] = []
+            encoding["parent_ast_ids"] = []
+            for i, c in enumerate(code):
+                ast_ids, parent_ast_ids = self.parse_tree(c, encoding["offset_mapping"][i])
+                encoding["ast_ids"].append(ast_ids)
+                encoding["parent_ast_ids"].append(parent_ast_ids)
+        else:
+            encoding["ast_ids"], encoding["parent_ast_ids"] = self.parse_tree(code, encoding["offset_mapping"])
         
         if return_merged:
             # Merge the AST ids with their parent AST ids and use the names instead of the ids
-            encoding["merged_ast"] = []
-            for i, (parent_id, ast_id) in enumerate(zip(encoding["parent_ast_ids"], encoding["ast_ids"])):
-                if parent_id == -1 or ast_id == -1:
-                    encoding["merged_ast"].append("< N/A >")
-                else:
-                    encoding["merged_ast"].append(
-                        f"<{self.node_types[parent_id]} -> {self.node_types[ast_id]}>"
-                    )
+            if isinstance(code, list):
+                encoding["merged_ast"] = []
+                for parent_ast_ids, ast_ids in zip(encoding["parent_ast_ids"], encoding["ast_ids"]):
+                    merged_ast = []
+                    for i, (parent_ast_id, ast_id) in enumerate(zip(parent_ast_ids, ast_ids)):
+                        if parent_ast_id == -1 or ast_id == -1:
+                            merged_ast.append("< N/A >")
+                        else:
+                            merged_ast.append(
+                                f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]}>"
+                            )
+
+                    encoding["merged_ast"].append(merged_ast)
+            else:
+                encoding["merged_ast"] = []
+                for parent_ast_id, ast_id in zip(encoding["parent_ast_ids"], encoding["ast_ids"]):
+                    if parent_ast_id == -1 or ast_id == -1:
+                        encoding["merged_ast"].append("< N/A >")
+                    else:
+                        encoding["merged_ast"].append(
+                            f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]}>"
+                        )
+
         return encoding
     
     def decode(self, *args, **kwargs):
