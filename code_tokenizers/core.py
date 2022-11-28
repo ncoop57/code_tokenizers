@@ -68,13 +68,17 @@ class CodeTokenizer():
     """A tokenizer for code, which aligns the tokens with the AST nodes."""
     def __init__(
         self,
-        tokenizer,  # transformers tokenizer
-        parser,     # tree-sitter parser
-        node_types  # list of node types
+        tokenizer,      # transformers tokenizer
+        parser,         # tree-sitter parser
+        node_types,     # list of node types
+        name_or_path,   # name or path of the tokenizer
+        lang,           # language of the tokenizer
     ):
         self.tokenizer = tokenizer
         self.parser = parser
         self.node_types = node_types
+        self.name_or_path = name_or_path
+        self.lang = lang
     
     def parse_tree(
         self,
@@ -178,4 +182,10 @@ class CodeTokenizer():
         parser = Parser()
         parser.set_language(language)
         
-        return CodeTokenizer(tokenizer, parser, node_types)
+        return CodeTokenizer(tokenizer, parser, node_types, name_or_path, lang)
+    
+    def __reduce__(self):
+        return (CodeTokenizer.from_pretrained, (self.name_or_path, self.lang))
+    
+    def __eq__(self, other):
+        return self.name_or_path == other.name_or_path and self.lang == other.lang
