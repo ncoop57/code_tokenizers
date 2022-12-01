@@ -75,7 +75,7 @@ class CodeTokenizer():
         node_types,         # list of node types
         name_or_path,       # name or path of the tokenizer
         program_lang,       # programming language of the tokenizer
-        add_padding_token,  # whether to add a padding token
+        padding_token,  # whether to add a padding token
     ):
         self.tokenizer = tokenizer
         self.parser = parser
@@ -83,7 +83,7 @@ class CodeTokenizer():
         self.node_types = node_types
         self.name_or_path = name_or_path
         self.program_lang = program_lang
-        self.add_padding_token = add_padding_token
+        self.padding_token = padding_token
     
     def parse_tree(
         self,
@@ -170,14 +170,14 @@ class CodeTokenizer():
 
     @staticmethod
     def from_pretrained(
-        name_or_path: str,              # name or path of the tokenizer
-        program_lang: str,              # language of the tokenizer
-        add_padding_token: bool = True, # whether to add a padding token
-    ):                      # CodeTokenizer for the given language
+        name_or_path: str,          # name or path of the tokenizer
+        program_lang: str,          # language of the tokenizer
+        padding_token: str = None,  # padding token to use
+    ):                              # CodeTokenizer for the given language
         """Create a CodeTokenizer from a pretrained tokenizer for a given language."""
         tokenizer = AutoTokenizer.from_pretrained(name_or_path)
-        if add_padding_token:
-            tokenizer.add_special_tokens({"pad_token": "<PAD>"})
+        if padding_token:
+            tokenizer.add_special_tokens({"pad_token": padding_token})
 
         # Grab the node types from the tree-sitter language
         language = Language(f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-languages.so", program_lang)
@@ -192,10 +192,10 @@ class CodeTokenizer():
         parser = Parser()
         parser.set_language(language)
         
-        return CodeTokenizer(tokenizer, parser, language, node_types, name_or_path, program_lang, add_padding_token)
+        return CodeTokenizer(tokenizer, parser, language, node_types, name_or_path, program_lang, padding_token)
     
     def __reduce__(self):
-        return (CodeTokenizer.from_pretrained, (self.name_or_path, self.program_lang, self.add_padding_token))
+        return (CodeTokenizer.from_pretrained, (self.name_or_path, self.program_lang, self.padding_token))
     
     def __eq__(self, other):
-        return self.name_or_path == other.name_or_path and self.program_lang == other.program_lang and self.add_padding_token == other.add_padding_token
+        return self.name_or_path == other.name_or_path and self.program_lang == other.program_lang and self.padding_token == other.padding_token
