@@ -187,6 +187,7 @@ class CodeTokenizer():
         node_types = unroll_node_types(node_types)
         if program_lang == "python":
             node_types.append("as_pattern_target")
+            node_types.append("ERROR")
 
         # Create a parser for the language
         parser = Parser()
