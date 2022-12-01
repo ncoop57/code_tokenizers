@@ -41,10 +41,11 @@ def traverse(
 
 # %% ../nbs/00_core.ipynb 6
 def get_token_type(
-    tok_span: tuple, # (start, end) position of a token
-    nodes: list,     # list of tree-sitter nodes
-    lines: list,     # list of lines in the code
-) -> tuple: # (parent_type, token_type) of the token
+    tok_span: tuple,        # (start, end) position of a token
+    nodes: list,            # list of tree-sitter nodes
+    lines: list,            # list of lines in the code
+    internal_methods: list, # list of internal methods
+) -> tuple:                 # (parent_type, token_type) of the token
     """Get the parent AST type and token AST type of a token."""
     def get_node_span(node):
         def convert_to_offset(point):
@@ -68,23 +69,28 @@ class CodeTokenizer():
     """A tokenizer for code, which aligns the tokens with the AST nodes."""
     def __init__(
         self,
-        tokenizer,      # transformers tokenizer
-        parser,         # tree-sitter parser
-        node_types,     # list of node types
-        name_or_path,   # name or path of the tokenizer
-        lang,           # language of the tokenizer
+        tokenizer,          # transformers tokenizer
+        parser,             # tree-sitter parser
+        language,           # tree-sitter language
+        node_types,         # list of node types
+        name_or_path,       # name or path of the tokenizer
+        program_lang,       # programming language of the tokenizer
+        add_padding_token,  # whether to add a padding token
     ):
         self.tokenizer = tokenizer
         self.parser = parser
+        self.language = language
         self.node_types = node_types
         self.name_or_path = name_or_path
-        self.lang = lang
+        self.program_lang = program_lang
+        self.add_padding_token = add_padding_token
     
     def parse_tree(
         self,
-        code,           # code to parse
-        offset_mapping  # offset mapping from the tokenizer to align the tokens with the AST nodes
-    ):                  # returns a list of AST ids and a list of parent AST ids
+        code,               # code to parse
+        offset_mapping,     # offset mapping from the tokenizer to align the tokens with the AST nodes
+        internal_methods,   # internal methods to parse the code
+    ):                      # returns a list of AST ids and a list of parent AST ids
         tree = self.parser.parse(bytes(code, "utf8"))
         nodes = []
         traverse(tree.root_node, nodes)
@@ -96,7 +102,7 @@ class CodeTokenizer():
                 ast_ids.append(-1)
                 parent_ast_ids.append(-1)
                 continue
-            type_info = get_token_type((start, end), nodes, code.split("\n"))
+            type_info = get_token_type((start, end), nodes, code.split("\n"), internal_methods)
             if type_info is None:
                 ast_ids.append(-1)
                 parent_ast_ids.append(-1)
@@ -116,20 +122,21 @@ class CodeTokenizer():
     
     def __call__(
         self,
-        code,               # code or list of code to tokenize
-        return_merged=True, # whether to string representations of the merged ASTs and parent ASTs
-        **kwargs            # kwargs for the underlying transformers tokenizer
-    ):                      # returns a dictionary of token ids, attention masks, AST ids, parent AST ids, and optionally the string representations of the merged ASTs and parent ASTs
+        code,                   # code or list of code to tokenize
+        internal_methods=[],    # list of internal methods to check against
+        return_merged=True,     # whether to string representations of the merged ASTs and parent ASTs
+        **kwargs                # kwargs for the underlying transformers tokenizer
+    ):                          # returns a dictionary of token ids, attention masks, AST ids, parent AST ids, and optionally the string representations of the merged ASTs and parent ASTs
         encoding = self.tokenizer(code, return_offsets_mapping=True, **kwargs)
         if isinstance(code, list):
             encoding["ast_ids"] = []
             encoding["parent_ast_ids"] = []
             for i, c in enumerate(code):
-                ast_ids, parent_ast_ids = self.parse_tree(c, encoding["offset_mapping"][i])
+                ast_ids, parent_ast_ids = self.parse_tree(c, encoding["offset_mapping"][i], internal_methods)
                 encoding["ast_ids"].append(ast_ids)
                 encoding["parent_ast_ids"].append(parent_ast_ids)
         else:
-            encoding["ast_ids"], encoding["parent_ast_ids"] = self.parse_tree(code, encoding["offset_mapping"])
+            encoding["ast_ids"], encoding["parent_ast_ids"] = self.parse_tree(code, encoding["offset_mapping"], internal_methods)
         
         if return_merged:
             # Merge the AST ids with their parent AST ids and use the names instead of the ids
@@ -163,29 +170,32 @@ class CodeTokenizer():
 
     @staticmethod
     def from_pretrained(
-        name_or_path: str,  # name or path of the tokenizer
-        lang: str,          # language of the tokenizer
+        name_or_path: str,              # name or path of the tokenizer
+        program_lang: str,              # language of the tokenizer
+        add_padding_token: bool = True, # whether to add a padding token
     ):                      # CodeTokenizer for the given language
         """Create a CodeTokenizer from a pretrained tokenizer for a given language."""
         tokenizer = AutoTokenizer.from_pretrained(name_or_path)
+        if add_padding_token:
+            tokenizer.add_special_tokens({"pad_token": "<PAD>"})
 
         # Grab the node types from the tree-sitter language
-        language = Language(f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-languages.so", lang)
-        node_path = f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-{lang}/src/node-types.json"
+        language = Language(f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-languages.so", program_lang)
+        node_path = f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-{program_lang}/src/node-types.json"
         with open(node_path) as f:
             node_types = json.load(f)
         node_types = unroll_node_types(node_types)
-        if lang == "python":
+        if program_lang == "python":
             node_types.append("as_pattern_target")
 
         # Create a parser for the language
         parser = Parser()
         parser.set_language(language)
         
-        return CodeTokenizer(tokenizer, parser, node_types, name_or_path, lang)
+        return CodeTokenizer(tokenizer, parser, language, node_types, name_or_path, program_lang, add_padding_token)
     
     def __reduce__(self):
-        return (CodeTokenizer.from_pretrained, (self.name_or_path, self.lang))
+        return (CodeTokenizer.from_pretrained, (self.name_or_path, self.program_lang, self.add_padding_token))
     
     def __eq__(self, other):
-        return self.name_or_path == other.name_or_path and self.lang == other.lang
+        return self.name_or_path == other.name_or_path and self.program_lang == other.program_lang and self.add_padding_token == other.add_padding_token
