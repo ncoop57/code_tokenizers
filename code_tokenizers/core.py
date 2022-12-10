@@ -10,7 +10,7 @@ import json
 from transformers import AutoTokenizer
 from tree_sitter import Language, Parser
 
-# %% ../nbs/00_core.ipynb 5
+# %% ../nbs/00_core.ipynb 4
 def unroll_node_types(
     nested_node_types: dict, # node_types from tree-sitter
 ) -> list: # list of node types
@@ -24,7 +24,7 @@ def unroll_node_types(
     ]
     return list(set(node_types + node_subtypes))
 
-# %% ../nbs/00_core.ipynb 6
+# %% ../nbs/00_core.ipynb 5
 # From: https://github.com/github/CodeSearchNet/tree/master/function_parser
 def traverse(
     node,       # tree-sitter node
@@ -39,12 +39,13 @@ def traverse(
     if not node.children:
         results.append(node)
 
-# %% ../nbs/00_core.ipynb 7
+# %% ../nbs/00_core.ipynb 6
 def get_token_type(
     tok_span: tuple,        # (start, end) position of a token
     nodes: list,            # list of tree-sitter nodes
     lines: list,            # list of lines in the code
     internal_methods: list, # list of internal methods
+    ignore_ast_types: list, # list of AST types to ignore for internal methods
 ) -> tuple:                 # (parent_type, token_type) of the token
     """Get the parent AST type and token AST type of a token."""
     def get_node_span(node):
@@ -62,10 +63,15 @@ def get_token_type(
     node_spans = [get_node_span(node) for node in nodes]
     for i, span in enumerate(node_spans):
         if (span[0] <= tok_span[0] and tok_span[0] < span[1]) or (span[0] < tok_span[1] and tok_span[1] <= span[1]):
-            is_internal = nodes[i].text.decode() in internal_methods
+            is_internal = nodes[i].text.decode() in internal_methods and nodes[i].parent.type not in ignore_ast_types
+            if not is_internal:
+                if nodes[i].parent.parent is not None:
+                    if nodes[i].parent.parent.type in "call":
+                        if nodes[i].parent.parent.named_children[0].text.decode() in internal_methods:
+                            is_internal = True
             return nodes[i].parent.type, nodes[i].type, is_internal
 
-# %% ../nbs/00_core.ipynb 8
+# %% ../nbs/00_core.ipynb 7
 class CodeTokenizer():
     """A tokenizer for code, which aligns the tokens with the AST nodes."""
     def __init__(
@@ -85,6 +91,9 @@ class CodeTokenizer():
         self.name_or_path = name_or_path
         self.program_lang = program_lang
         self.padding_token = padding_token
+
+        if self.program_lang == "python":
+            self.ignore_ast_types = ["assignment"]
     
     def parse_tree(
         self,
@@ -95,6 +104,7 @@ class CodeTokenizer():
         tree = self.parser.parse(bytes(code, "utf8"))
         nodes = []
         traverse(tree.root_node, nodes)
+        self.nodes = nodes
 
         ast_ids = []
         parent_ast_ids = []
@@ -108,7 +118,8 @@ class CodeTokenizer():
                 (start, end),
                 nodes,
                 code.split("\n"),
-                internal_methods
+                internal_methods,
+                ignore_ast_types=self.ignore_ast_types,
             )
             if type_info is None:
                 ast_ids.append(-1)

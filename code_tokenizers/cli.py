@@ -13,15 +13,15 @@ from tree_sitter import Language
 
 # %% ../nbs/01_cli.ipynb 4
 _GRAMMARs = {
-    "python": ("https://github.com/tree-sitter/tree-sitter-python.git", "tree-sitter-python", "v0.20.0"),
+    "python": (
+        "https://github.com/tree-sitter/tree-sitter-python.git",
+        "tree-sitter-python",
+        "v0.20.0"
+    ),
 }
 
 # %% ../nbs/01_cli.ipynb 5
-@call_parse
-def download_grammars(
-    languages: Param("Languages to download", str, nargs="+") = "all",
-):
-    """Download Tree-sitter grammars"""
+def _download_grammars(languages):
     try:
         grammars = _GRAMMARs if languages == "all" else {k: _GRAMMARs[k] for k in languages}
     except KeyError as e:
@@ -34,8 +34,7 @@ def download_grammars(
         repo_dir = grammar_dir / dir
         if not repo_dir.exists():
             repo = Repo.clone_from(url, repo_dir)
-        g = Git(str(repo_dir))
-        g.checkout(tag)
+            repo.git.checkout(tag)
         langs.append(str(repo_dir))
     
     Language.build_library(
@@ -44,3 +43,11 @@ def download_grammars(
         # Include one or more languages
         langs
     )
+
+# %% ../nbs/01_cli.ipynb 6
+@call_parse
+def download_grammars(
+    languages: Param("Languages to download", str, nargs="+") = "all",
+):
+    """Download Tree-sitter grammars"""
+    _download_grammars(languages)
