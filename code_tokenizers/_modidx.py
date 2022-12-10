@@ -38,4 +38,7 @@ d = { 'settings': { 'branch': 'main',
             'code_tokenizers.grammars.tree-sitter-python.examples.trailing-whitespace': {},
             'code_tokenizers.grammars.tree-sitter-python.test.highlight.keywords': {},
             'code_tokenizers.grammars.tree-sitter-python.test.highlight.parameters': {},
-            'code_tokenizers.grammars.tree-sitter-python.test.highlight.pattern_matching': {}}}
+            'code_tokenizers.grammars.tree-sitter-python.test.highlight.pattern_matching': {},
+            'code_tokenizers.helpers': { 'code_tokenizers.helpers.get_definitions': ( 'helpers.html#get_definitions',
+                                                                                      'code_tokenizers/helpers.py'),
+                                         'code_tokenizers.helpers.get_query': ('helpers.html#get_query', 'code_tokenizers/helpers.py')}}}

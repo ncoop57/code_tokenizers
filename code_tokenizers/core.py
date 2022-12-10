@@ -62,7 +62,8 @@ def get_token_type(
     node_spans = [get_node_span(node) for node in nodes]
     for i, span in enumerate(node_spans):
         if (span[0] <= tok_span[0] and tok_span[0] < span[1]) or (span[0] < tok_span[1] and tok_span[1] <= span[1]):
-            return nodes[i].parent.type, nodes[i].type
+            is_internal = nodes[i].text.decode() in internal_methods
+            return nodes[i].parent.type, nodes[i].type, is_internal
 
 # %% ../nbs/00_core.ipynb 7
 class CodeTokenizer():
@@ -97,28 +98,37 @@ class CodeTokenizer():
 
         ast_ids = []
         parent_ast_ids = []
+        is_internal_methods = []
         for i, (start, end) in enumerate(offset_mapping):
             if start == None or end == None:
                 ast_ids.append(-1)
                 parent_ast_ids.append(-1)
                 continue
-            type_info = get_token_type((start, end), nodes, code.split("\n"), internal_methods)
+            type_info = get_token_type(
+                (start, end),
+                nodes,
+                code.split("\n"),
+                internal_methods
+            )
             if type_info is None:
                 ast_ids.append(-1)
                 parent_ast_ids.append(-1)
+                is_internal_methods.append(False)
             else:
-                parent_node_type, node_type = type_info
+                parent_node_type, node_type, is_internal = type_info
                 try:
                     ast_ids.append(self.node_types.index(node_type))
                     parent_ast_ids.append(self.node_types.index(parent_node_type))
+                    is_internal_methods.append(is_internal)
                 except Exception as e:
                     print(type_info)
                     print(code)
                     ast_ids.append(-1)
                     parent_ast_ids.append(-1)
+                    is_internal_methods.append(False)
                     raise e
 
-        return ast_ids, parent_ast_ids
+        return ast_ids, parent_ast_ids, is_internal_methods
     
     def __call__(
         self,
@@ -131,37 +141,49 @@ class CodeTokenizer():
         if isinstance(code, list):
             encoding["ast_ids"] = []
             encoding["parent_ast_ids"] = []
+            encoding["is_internal_methods"] = []
             for i, c in enumerate(code):
-                ast_ids, parent_ast_ids = self.parse_tree(c, encoding["offset_mapping"][i], internal_methods)
+                ast_ids, parent_ast_ids, is_internal_methods = self.parse_tree(c, encoding["offset_mapping"][i], internal_methods)
                 encoding["ast_ids"].append(ast_ids)
                 encoding["parent_ast_ids"].append(parent_ast_ids)
+                encoding["is_internal_methods"].append(is_internal_methods)
         else:
-            encoding["ast_ids"], encoding["parent_ast_ids"] = self.parse_tree(code, encoding["offset_mapping"], internal_methods)
+            encoding["ast_ids"], encoding["parent_ast_ids"], encoding["is_internal_methods"] = self.parse_tree(code, encoding["offset_mapping"], internal_methods)
         
         if return_merged:
             # Merge the AST ids with their parent AST ids and use the names instead of the ids
             if isinstance(code, list):
                 encoding["merged_ast"] = []
-                for parent_ast_ids, ast_ids in zip(encoding["parent_ast_ids"], encoding["ast_ids"]):
+                for parent_ast_ids, ast_ids, is_internals in zip(encoding["parent_ast_ids"], encoding["ast_ids"], encoding["is_internal_methods"]):
                     merged_ast = []
-                    for i, (parent_ast_id, ast_id) in enumerate(zip(parent_ast_ids, ast_ids)):
+                    for i, (parent_ast_id, ast_id, is_internal) in enumerate(zip(parent_ast_ids, ast_ids, is_internals)):
                         if parent_ast_id == -1 or ast_id == -1:
                             merged_ast.append("< N/A >")
                         else:
-                            merged_ast.append(
-                                f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]}>"
-                            )
+                            if is_internal:
+                                merged_ast.append(
+                                    f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]} (internal)>"
+                                )
+                            else:
+                                merged_ast.append(
+                                    f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]}>"
+                                )
 
                     encoding["merged_ast"].append(merged_ast)
             else:
                 encoding["merged_ast"] = []
-                for parent_ast_id, ast_id in zip(encoding["parent_ast_ids"], encoding["ast_ids"]):
+                for parent_ast_id, ast_id, is_internal in zip(encoding["parent_ast_ids"], encoding["ast_ids"], encoding["is_internal_methods"]):
                     if parent_ast_id == -1 or ast_id == -1:
                         encoding["merged_ast"].append("< N/A >")
                     else:
-                        encoding["merged_ast"].append(
-                            f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]}>"
-                        )
+                        if is_internal:
+                            encoding["merged_ast"].append(
+                                f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]} (internal)>"
+                            )
+                        else:
+                            encoding["merged_ast"].append(
+                                f"<{self.node_types[parent_ast_id]} -> {self.node_types[ast_id]}>"
+                            )
 
         return encoding
     
