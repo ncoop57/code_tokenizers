@@ -3,15 +3,7 @@
 # %% auto 0
 __all__ = ['get_query', 'get_definitions']
 
-# %% ../nbs/02_helpers.ipynb 2
-import code_tokenizers
-
-from fastcore.script import *
-from git import Git, Repo
-from pathlib import Path
-from tree_sitter import Language
-
-# %% ../nbs/02_helpers.ipynb 7
+# %% ../nbs/02_helpers.ipynb 6
 def get_query(language, program_lang):
     "Get a query based on the language"
     if program_lang == "python":
@@ -24,7 +16,7 @@ def get_query(language, program_lang):
             """
         )
 
-# %% ../nbs/02_helpers.ipynb 8
+# %% ../nbs/02_helpers.ipynb 7
 def get_definitions(file_contents, tokenizer):
     """
     Get all definitions from a given list of files
