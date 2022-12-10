@@ -10,7 +10,7 @@ import json
 from transformers import AutoTokenizer
 from tree_sitter import Language, Parser
 
-# %% ../nbs/00_core.ipynb 4
+# %% ../nbs/00_core.ipynb 5
 def unroll_node_types(
     nested_node_types: dict, # node_types from tree-sitter
 ) -> list: # list of node types
@@ -24,7 +24,7 @@ def unroll_node_types(
     ]
     return list(set(node_types + node_subtypes))
 
-# %% ../nbs/00_core.ipynb 5
+# %% ../nbs/00_core.ipynb 6
 # From: https://github.com/github/CodeSearchNet/tree/master/function_parser
 def traverse(
     node,       # tree-sitter node
@@ -39,7 +39,7 @@ def traverse(
     if not node.children:
         results.append(node)
 
-# %% ../nbs/00_core.ipynb 6
+# %% ../nbs/00_core.ipynb 7
 def get_token_type(
     tok_span: tuple,        # (start, end) position of a token
     nodes: list,            # list of tree-sitter nodes
@@ -65,7 +65,7 @@ def get_token_type(
             is_internal = nodes[i].text.decode() in internal_methods
             return nodes[i].parent.type, nodes[i].type, is_internal
 
-# %% ../nbs/00_core.ipynb 7
+# %% ../nbs/00_core.ipynb 8
 class CodeTokenizer():
     """A tokenizer for code, which aligns the tokens with the AST nodes."""
     def __init__(
