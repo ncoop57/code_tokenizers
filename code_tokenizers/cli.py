@@ -7,7 +7,7 @@ __all__ = ['download_grammars']
 import code_tokenizers
 
 from fastcore.script import *
-from git import Git, Repo
+from git import Repo
 from pathlib import Path
 from tree_sitter import Language
 
@@ -30,7 +30,7 @@ def _download_grammars(languages):
     langs = []
     grammar_dir = Path(code_tokenizers.__file__).parent / "grammars"
     grammar_dir.mkdir(exist_ok=True)
-    for lang, (url, dir, tag) in grammars.items():
+    for _, (url, dir, tag) in grammars.items():
         repo_dir = grammar_dir / dir
         if not repo_dir.exists():
             repo = Repo.clone_from(url, repo_dir)

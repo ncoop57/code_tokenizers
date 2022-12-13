@@ -41,11 +41,11 @@ def traverse(
 
 # %% ../nbs/00_core.ipynb 6
 def get_token_type(
-    tok_span: tuple,        # (start, end) position of a token
-    nodes: list,            # list of tree-sitter nodes
-    lines: list,            # list of lines in the code
-    internal_methods: list, # list of internal methods
-    ignore_ast_types: list, # list of AST types to ignore for internal methods
+    tok_span: tuple,            # (start, end) position of a token
+    nodes: list,                # list of tree-sitter nodes
+    lines: list,                # list of lines in the code
+    internal_methods: list,     # list of internal methods
+    acceptable_ast_types: list, # list of AST types to accept for internal methods
 ) -> tuple:                 # (parent_type, token_type) of the token
     """Get the parent AST type and token AST type of a token."""
     def get_node_span(node):
@@ -63,7 +63,7 @@ def get_token_type(
     node_spans = [get_node_span(node) for node in nodes]
     for i, span in enumerate(node_spans):
         if (span[0] <= tok_span[0] and tok_span[0] < span[1]) or (span[0] < tok_span[1] and tok_span[1] <= span[1]):
-            is_internal = nodes[i].text.decode() in internal_methods and nodes[i].parent.type not in ignore_ast_types
+            is_internal = nodes[i].text.decode() in internal_methods and nodes[i].parent.type in acceptable_ast_types
             if not is_internal:
                 if nodes[i].parent.parent is not None:
                     if nodes[i].parent.parent.type in "call":
@@ -93,7 +93,7 @@ class CodeTokenizer():
         self.padding_token = padding_token
 
         if self.program_lang == "python":
-            self.ignore_ast_types = ["assignment"]
+            self.acceptable_ast_types = ["call", "argument_list"]
     
     def parse_tree(
         self,
@@ -119,7 +119,7 @@ class CodeTokenizer():
                 nodes,
                 code.split("\n"),
                 internal_methods,
-                ignore_ast_types=self.ignore_ast_types,
+                acceptable_ast_types=self.acceptable_ast_types,
             )
             if type_info is None:
                 ast_ids.append(-1)
@@ -150,11 +150,17 @@ class CodeTokenizer():
     ):                          # returns a dictionary of token ids, attention masks, AST ids, parent AST ids, and optionally the string representations of the merged ASTs and parent ASTs
         encoding = self.tokenizer(code, return_offsets_mapping=True, **kwargs)
         if isinstance(code, list):
+            if internal_methods == []:
+                internal_methods = [[] for _ in range(len(code))]
             encoding["ast_ids"] = []
             encoding["parent_ast_ids"] = []
             encoding["is_internal_methods"] = []
             for i, c in enumerate(code):
-                ast_ids, parent_ast_ids, is_internal_methods = self.parse_tree(c, encoding["offset_mapping"][i], internal_methods)
+                ast_ids, parent_ast_ids, is_internal_methods = self.parse_tree(
+                    c,
+                    encoding["offset_mapping"][i],
+                    internal_methods[i]
+                )
                 encoding["ast_ids"].append(ast_ids)
                 encoding["parent_ast_ids"].append(parent_ast_ids)
                 encoding["is_internal_methods"].append(is_internal_methods)
@@ -165,7 +171,11 @@ class CodeTokenizer():
             # Merge the AST ids with their parent AST ids and use the names instead of the ids
             if isinstance(code, list):
                 encoding["merged_ast"] = []
-                for parent_ast_ids, ast_ids, is_internals in zip(encoding["parent_ast_ids"], encoding["ast_ids"], encoding["is_internal_methods"]):
+                for parent_ast_ids, ast_ids, is_internals in zip(
+                    encoding["parent_ast_ids"],
+                    encoding["ast_ids"],
+                    encoding["is_internal_methods"]
+                ):
                     merged_ast = []
                     for i, (parent_ast_id, ast_id, is_internal) in enumerate(zip(parent_ast_ids, ast_ids, is_internals)):
                         if parent_ast_id == -1 or ast_id == -1:
