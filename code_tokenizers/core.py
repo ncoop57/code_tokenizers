@@ -224,7 +224,7 @@ class CodeTokenizer():
 
         # Grab the node types from the tree-sitter language
         language = Language(f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-languages.so", program_lang)
-        node_path = f"{code_tokenizers.__path__[0]}/grammars/tree-sitter-{program_lang}/src/node-types.json"
+        node_path = f"{code_tokenizers.__path__[0]}/grammars/{program_lang}/src/node-types.json"
         with open(node_path) as f:
             node_types = json.load(f)
         node_types = unroll_node_types(node_types)

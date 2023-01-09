@@ -5,23 +5,27 @@ __all__ = ['download_grammars']
 
 # %% ../nbs/01_cli.ipynb 2
 import code_tokenizers
+import os
+import shutil
+import urllib.request
 
 from fastcore.script import *
-from git import Repo
 from pathlib import Path
 from tree_sitter import Language
 
 # %% ../nbs/01_cli.ipynb 4
 _GRAMMARs = {
-    "python": (
-        "https://github.com/tree-sitter/tree-sitter-python.git",
-        "tree-sitter-python",
-        "v0.20.0"
-    ),
+    "python": "https://github.com/tree-sitter/tree-sitter-python/archive/refs/tags/v0.20.0.zip",
 }
 
 # %% ../nbs/01_cli.ipynb 5
 def _download_grammars(languages):
+    """
+    Download the tree-sitter grammars for the specified languages.
+    
+    If the languages argument is the string 'all', all available grammars will be downloaded.
+    Otherwise, the argument should be a list of language codes to download.
+    """
     try:
         grammars = _GRAMMARs if languages == "all" else {k: _GRAMMARs[k] for k in languages}
     except KeyError as e:
@@ -30,11 +34,19 @@ def _download_grammars(languages):
     langs = []
     grammar_dir = Path(code_tokenizers.__file__).parent / "grammars"
     grammar_dir.mkdir(exist_ok=True)
-    for _, (url, dir, tag) in grammars.items():
-        repo_dir = grammar_dir / dir
+    for name, url in grammars.items():
+        repo_dir = grammar_dir / name
         if not repo_dir.exists():
-            repo = Repo.clone_from(url, repo_dir)
-            repo.git.checkout(tag)
+            # Download the tagged archive
+            urllib.request.urlretrieve(url, f"{repo_dir}.zip")
+            # Unzip the repository archive and remove the zip file
+            shutil.unpack_archive(f"{repo_dir}.zip", repo_dir)
+            os.remove(f"{repo_dir}.zip")
+            ts_path = list(repo_dir.iterdir())[0]
+            # Move the contents of the tagged archive to the repo directory
+            for f in ts_path.iterdir():
+                shutil.move(f, repo_dir)
+
         langs.append(str(repo_dir))
     
     Language.build_library(
@@ -44,7 +56,7 @@ def _download_grammars(languages):
         langs
     )
 
-# %% ../nbs/01_cli.ipynb 6
+# %% ../nbs/01_cli.ipynb 7
 @call_parse
 def download_grammars(
     languages: Param("Languages to download", str, nargs="+") = "all",
