@@ -24,7 +24,7 @@ class ASTNode:
     def __str__(self):
         if self.type == -1 or self.parent_type == -1:
             return "< N/A >"
-        return f"<{self.type} -> {self.parent_type}" + (" (internal)" if self.is_internal else "") + ">"
+        return f"<{self.parent_type} -> {self.type}" + (" (internal)" if self.is_internal else "") + ">"
 
 # %% ../nbs/00_core.ipynb 5
 def unroll_node_types(
@@ -193,12 +193,12 @@ class CodeTokenizer():
                 for ast_nodes in batched_ast_nodes:
                     merged_ast = []
                     for ast_node in ast_nodes:
-                        merged_ast.append(str(ast_node))
+                        merged_ast.append(str(ast_node) if ast_node is not None else "< N/A >")
                     encoding["merged_ast"].append(merged_ast)
             else:
                 encoding["merged_ast"] = []
                 for ast_node in ast_nodes:
-                    encoding["merged_ast"].append(str(ast_node))
+                    encoding["merged_ast"].append(str(ast_node) if ast_node is not None else "< N/A >")
 
         return encoding
     
