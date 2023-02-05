@@ -22,14 +22,18 @@ _GRAMMARs = {
 def _download_grammars(languages):
     """
     Download the tree-sitter grammars for the specified languages.
-    
+
     If the languages argument is the string 'all', all available grammars will be downloaded.
     Otherwise, the argument should be a list of language codes to download.
     """
     try:
-        grammars = _GRAMMARs if languages == "all" else {k: _GRAMMARs[k] for k in languages}
+        grammars = (
+            _GRAMMARs if languages == "all" else {k: _GRAMMARs[k] for k in languages}
+        )
     except KeyError as e:
-        raise ValueError(f"Invalid or unsupported language: {e}. Supported languages: {list(_GRAMMARs.keys())}")
+        raise ValueError(
+            f"Invalid or unsupported language: {e}. Supported languages: {list(_GRAMMARs.keys())}"
+        )
 
     langs = []
     grammar_dir = Path(code_tokenizers.__file__).parent / "grammars"
@@ -48,12 +52,12 @@ def _download_grammars(languages):
                 shutil.move(f, repo_dir)
 
         langs.append(str(repo_dir))
-    
+
     Language.build_library(
         # Store the library in the directory
         str(grammar_dir / "tree-sitter-languages.so"),
         # Include one or more languages
-        langs
+        langs,
     )
 
 # %% ../nbs/01_cli.ipynb 7

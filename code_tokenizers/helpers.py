@@ -7,7 +7,8 @@ __all__ = ['get_query', 'get_internal_methods']
 def get_query(language, program_lang):
     "Get a query based on the language"
     if program_lang == "python":
-        return language.query("""
+        return language.query(
+            """
             (function_definition
                 name: (identifier) @func.name)
 
@@ -27,5 +28,9 @@ def get_internal_methods(file_contents, tokenizer):
     query = get_query(tokenizer.language, tokenizer.program_lang)
     captures = query.captures(root_node)
     # make sure to ignore dunders
-    internal_methods = {node.text.decode() for node, _ in captures if not node.text.decode().startswith("__")}
+    internal_methods = {
+        node.text.decode()
+        for node, _ in captures
+        if not node.text.decode().startswith("__")
+    }
     return internal_methods
