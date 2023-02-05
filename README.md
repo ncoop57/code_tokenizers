@@ -53,10 +53,6 @@ from code_tokenizers.core import CodeTokenizer
 py_tokenizer = CodeTokenizer.from_pretrained("gpt2", "python")
 ```
 
-    /home/nathan/miniconda3/envs/code_tokenizers/lib/python3.10/site-packages/tqdm/auto.py:22: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-      from .autonotebook import tqdm as notebook_tqdm
-    None of PyTorch, TensorFlow >= 2.0, or Flax have been found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
-
 You can specify any pretrained BPE tokenizer from the [huggingface
 hub](hf.co/models) or a local directory and the language to parse the
 AST for.
@@ -78,6 +74,9 @@ pprint(encoding, depth=1)
     {'ast_ids': [...],
      'attention_mask': [...],
      'input_ids': [...],
+     'is_builtins': [...],
+     'is_internal_methods': [...],
+     'merged_ast': [...],
      'offset_mapping': [...],
      'parent_ast_ids': [...]}
 
