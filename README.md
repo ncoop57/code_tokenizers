@@ -17,41 +17,26 @@ pip install code_tokenizers
 
 ## How to use
 
-First you need to make sure you have the tree-sitter grammars for the
-languages you want to use. To simplify this process, we’ve built a CLI
-tool that will download the grammars for you that comes with this
-library:
-
-``` python
-!download_grammars --help
-```
-
-    usage: download_grammars [-h] [--languages LANGUAGES [LANGUAGES ...]]
-
-    Download Tree-sitter grammars
-
-    options:
-      -h, --help                            show this help message and exit
-      --languages LANGUAGES [LANGUAGES ...]
-                                            Languages to download (default: all)
-
-This will download the grammars to the `grammars` directory in the
-directory where this library is installed. Let’s continue this example
-with the Python grammar:
-
-``` python
-!download_grammars --languages python
-```
-
-Now, we can create a
+The main interface of `code_tokenizers` is the
 [`CodeTokenizer`](https://ncoop57.github.io/code_tokenizers/core.html#codetokenizer)
-object:
+class. You can use a pretrained BPE tokenizer from the popular
+[transformers](https://huggingface.co/docs/transformers/quicktour#autotokenizer)
+library, and a tree-sitter parser from the
+[tree-sitter](https://tree-sitter.github.io/tree-sitter/using-parsers#python)
+library.
+
+To specify a
+[`CodeTokenizer`](https://ncoop57.github.io/code_tokenizers/core.html#codetokenizer)
+using the `gpt2` BPE tokenizer and the `python` tree-sitter parser, you
+can do:
 
 ``` python
 from code_tokenizers.core import CodeTokenizer
 
 py_tokenizer = CodeTokenizer.from_pretrained("gpt2", "python")
 ```
+
+    None of PyTorch, TensorFlow >= 2.0, or Flax have been found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
 
 You can specify any pretrained BPE tokenizer from the [huggingface
 hub](hf.co/models) or a local directory and the language to parse the
