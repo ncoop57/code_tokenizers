@@ -94,6 +94,14 @@ def get_token_type(
                         ):
                             is_internal = True
 
+            if not is_builtin:
+                if nodes[i].parent.parent is not None:
+                    if nodes[i].parent.parent.type in "call":
+                        if nodes[i].parent.parent.named_children[
+                            0
+                        ].text.decode() in dir(__builtins__):
+                            is_builtin = True
+
             ast_node = ASTNode(nodes[i], is_internal, is_builtin, node_types)
             return ast_node
 
