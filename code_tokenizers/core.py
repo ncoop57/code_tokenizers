@@ -7,7 +7,7 @@ __all__ = ['ASTNode', 'traverse', 'get_token_type', 'CodeTokenizer']
 import code_tokenizers
 import json
 
-from .helpers import get_parser
+from .helpers import BUILTINs, get_parser
 from pathlib import Path
 from transformers import AutoTokenizer
 from tree_sitter import Language, Parser
@@ -82,8 +82,7 @@ def get_token_type(
                 and nodes[i].parent.type in acceptable_ast_types
             )
             is_builtin = (
-                nodes[i].text.decode() in dir(__builtins__)
-                and nodes[i].parent.type == "call"
+                nodes[i].text.decode() in BUILTINs and nodes[i].parent.type == "call"
             )
             if not is_internal:
                 if nodes[i].parent.parent is not None:
